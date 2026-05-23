@@ -29,8 +29,7 @@ This project supports multiple world languages including:
 - FileSaver.js
 
 ## Demo
-<img width="1560" height="825" alt="Demo" src="https://github.com/user-attachments/assets/457d2818-8235-48ca-87cb-9f4cc2ca8412" />
-
+https://github.com/user-attachments/assets/81d9226c-8b8c-4337-885b-bf0272420ce9
 
 ## How It Works
 1. Upload a scanned PDF
