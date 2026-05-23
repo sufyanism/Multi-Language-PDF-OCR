@@ -2,15 +2,28 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mixed Language PDF OCR</title>
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0">
 
+<title>Advanced PDF OCR Formatter</title>
+
+<!-- jQuery -->
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+<!-- PDF.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<!-- Tesseract -->
 <script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
+
+<!-- FileSaver -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
+<!-- DOCX -->
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+
 <style>
+
 *{
 margin:0;
 padding:0;
@@ -30,7 +43,7 @@ padding:20px;
 
 .container{
 width:100%;
-max-width:950px;
+max-width:1200px;
 background:#1e293b;
 padding:30px;
 border-radius:18px;
@@ -52,7 +65,9 @@ text-align:center;
 margin-bottom:20px;
 }
 
-input,button{
+input,
+button,
+textarea{
 width:100%;
 padding:14px;
 margin-top:15px;
@@ -70,28 +85,35 @@ button{
 background:#2563eb;
 color:white;
 cursor:pointer;
+transition:0.3s;
+}
+
+button:hover{
+background:#1d4ed8;
 }
 
 textarea{
-width:100%;
-height:350px;
-margin-top:20px;
-padding:15px;
+height:500px;
 background:#0f172a;
 color:white;
-border:none;
-border-radius:12px;
 resize:none;
-font-size:16px;
 line-height:1.8;
-unicode-bidi:plaintext;
-direction:auto;
+white-space:pre-wrap;
+font-family:Consolas,monospace;
 }
 
-.status{
+.page-box{
+display:grid;
+grid-template-columns:1fr 1fr 1fr;
+gap:15px;
 margin-top:15px;
-text-align:center;
-color:#93c5fd;
+}
+
+.download-buttons{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:15px;
+margin-top:15px;
 }
 
 .progress{
@@ -109,6 +131,14 @@ height:100%;
 background:#22c55e;
 transition:0.3s;
 }
+
+.status{
+margin-top:15px;
+text-align:center;
+color:#93c5fd;
+font-size:15px;
+}
+
 </style>
 </head>
 
@@ -116,29 +146,61 @@ transition:0.3s;
 
 <div class="container">
 
-<h1> Multi-Language PDF OCR</h1>
+<h1>Advanced PDF OCR Formatter</h1>
 
 <div class="upload-box">
-<p>Upload scanned PDF</p>
-<input type="file" id="pdfFile" accept="application/pdf">
+
+<p>Upload PDF File</p>
+
+<input
+type="file"
+id="pdfFile"
+accept="application/pdf">
+
 </div>
+
+<div class="page-box">
+
+<input
+type="number"
+id="fromPage"
+placeholder="From Page">
+
+<input
+type="number"
+id="toPage"
+placeholder="To Page">
 
 <button id="extractBtn">
-Extract Original Text From All Pages
+Extract Pages
 </button>
 
-<div class="status" id="status"></div>
-
-<div class="progress">
-<div class="progress-bar" id="progressBar"></div>
 </div>
 
-<textarea id="outputText"
-placeholder="Extracted text will appear here..."></textarea>
+<div class="download-buttons">
 
-<button id="downloadBtn">
-Download TXT File
+<button id="downloadTxtBtn">
+Download TXT
 </button>
+
+<button id="downloadDocBtn">
+Download DOCX
+</button>
+
+</div>
+
+<div class="status"
+id="status"></div>
+
+<div class="progress">
+<div class="progress-bar"
+id="progressBar"></div>
+</div>
+
+<textarea
+id="outputText"
+placeholder="Formatted extracted text..."
+></textarea>
 
 </div>
 
@@ -149,68 +211,293 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 
 let extractedText = "";
 
+let formattedContent = [];
+
+let originalFileName = "document";
+
+// OCR fallback language
+const languagePack =
+"eng+urd+ara+hin";
+
+// EXTRACT BUTTON
 $("#extractBtn").click(async function(){
 
-const file = $("#pdfFile")[0].files[0];
+const file =
+$("#pdfFile")[0].files[0];
 
 if(!file){
-alert("Please upload PDF file.");
+
+alert("Please upload PDF.");
+
 return;
+
 }
 
-$("#status").text("Loading PDF...");
-$("#progressBar").css("width","0%");
+originalFileName =
+file.name.replace(/\.pdf$/i,'');
+
+$("#status").text(
+"Loading PDF..."
+);
+
+$("#progressBar").css(
+"width",
+"0%"
+);
 
 extractedText = "";
+
+formattedContent = [];
+
 $("#outputText").val("");
 
 const reader = new FileReader();
 
 reader.onload = async function(){
 
-const typedarray = new Uint8Array(this.result);
+try{
 
-const pdf = await pdfjsLib.getDocument(typedarray).promise;
+const typedarray =
+new Uint8Array(this.result);
 
-const totalPages = pdf.numPages;
+const pdf =
+await pdfjsLib.getDocument(
+typedarray
+).promise;
 
-// Multiple languages together
-const languagePack = "eng+urd+ara+hin";
+const totalPages =
+pdf.numPages;
 
-for(let pageNum = 1; pageNum <= totalPages; pageNum++){
+const startPage =
+parseInt($("#fromPage").val()) || 1;
+
+const endPage =
+parseInt($("#toPage").val()) || totalPages;
+
+for(
+let pageNum = startPage;
+pageNum <= endPage;
+pageNum++
+){
 
 $("#status").text(
-"Extracting page " + pageNum + " of " + totalPages
+"Extracting page " +
+pageNum
 );
 
-const page = await pdf.getPage(pageNum);
+const page =
+await pdf.getPage(pageNum);
 
-const viewport = page.getViewport({scale:2});
+const textContent =
+await page.getTextContent();
 
-const canvas = document.createElement("canvas");
-const context = canvas.getContext("2d");
+extractedText +=
 
-canvas.width = viewport.width;
-canvas.height = viewport.height;
+"\n\n====================================================\n";
+
+extractedText +=
+"PAGE " + pageNum + "\n";
+
+extractedText +=
+"====================================================\n\n";
+
+formattedContent.push({
+
+type:"heading",
+
+text:"PAGE " + pageNum
+
+});
+
+let lastY = null;
+
+if(textContent.items.length > 0){
+
+for(const item of textContent.items){
+
+const text =
+item.str;
+
+if(!text.trim()){
+continue;
+}
+
+const fontName =
+item.fontName || "";
+
+const lowerFont =
+fontName.toLowerCase();
+
+const transform =
+item.transform;
+
+const fontSize =
+Math.round(
+Math.abs(transform[0])
+);
+
+const y =
+transform[5];
+
+// BETTER BOLD DETECTION
+const isBold =
+
+lowerFont.includes("bold")
+||
+lowerFont.includes("black")
+||
+lowerFont.includes("heavy")
+||
+lowerFont.includes("semibold")
+||
+lowerFont.includes("demi")
+||
+lowerFont.includes("medium")
+||
+lowerFont.includes("extrabold")
+||
+lowerFont.includes("extrablack");
+
+// FONT FAMILY DETECTION
+let fontFamily = "Arial";
+
+if(lowerFont.includes("times")){
+
+fontFamily =
+"Times New Roman";
+
+}
+else if(lowerFont.includes("courier")){
+
+fontFamily =
+"Courier New";
+
+}
+else if(lowerFont.includes("calibri")){
+
+fontFamily =
+"Calibri";
+
+}
+else if(lowerFont.includes("cambria")){
+
+fontFamily =
+"Cambria";
+
+}
+else if(lowerFont.includes("helvetica")){
+
+fontFamily =
+"Helvetica";
+
+}
+
+if(
+lastY !== null
+&&
+Math.abs(y - lastY) > 15
+){
+
+extractedText += "\n";
+
+formattedContent.push({
+type:"newline"
+});
+
+}
+
+lastY = y;
+
+extractedText +=
+text + " ";
+
+formattedContent.push({
+
+type:"text",
+
+text:text,
+
+bold:isBold,
+
+size:fontSize,
+
+font:fontFamily
+
+});
+
+}
+
+}
+else{
+
+// OCR FALLBACK
+const viewport =
+page.getViewport({
+scale:4
+});
+
+const canvas =
+document.createElement("canvas");
+
+const context =
+canvas.getContext("2d");
+
+canvas.width =
+viewport.width;
+
+canvas.height =
+viewport.height;
 
 await page.render({
+
 canvasContext:context,
 viewport:viewport
+
 }).promise;
 
-const imageData = canvas.toDataURL("image/png");
+const imageData =
+canvas.toDataURL("image/png");
 
-const result = await Tesseract.recognize(
+const result =
+await Tesseract.recognize(
 imageData,
-languagePack,
-{
-logger:m=>{
+languagePack
+);
 
-if(m.status === "recognizing text"){
+const ocrText =
+result.data.text;
+
+extractedText += ocrText;
+
+formattedContent.push({
+
+type:"text",
+
+text:ocrText,
+
+bold:false,
+
+size:12,
+
+font:"Arial"
+
+});
+
+}
+
+extractedText += "\n\n";
+
+$("#outputText").val(
+extractedText
+);
 
 const progress =
-((pageNum - 1) / totalPages) * 100 +
-((m.progress * 100) / totalPages);
+(
+(pageNum - startPage + 1)
+/
+(endPage - startPage + 1)
+)
+* 100;
 
 $("#progressBar").css(
 "width",
@@ -219,27 +506,19 @@ progress + "%"
 
 }
 
-}
-}
-);
-
-// Original text remains unchanged
-extractedText +=
-"\n\n========== PAGE " + pageNum + " ==========";
-
-extractedText += "\n\n";
-
-extractedText += result.data.text;
-
-$("#outputText").val(extractedText);
-
-}
-
 $("#status").text(
-"All pages extracted successfully."
+"Extraction completed successfully."
 );
 
-$("#progressBar").css("width","100%");
+}catch(error){
+
+console.error(error);
+
+alert(
+"Error extracting PDF."
+);
+
+}
 
 };
 
@@ -247,21 +526,223 @@ reader.readAsArrayBuffer(file);
 
 });
 
-$("#downloadBtn").click(function(){
+// DOWNLOAD TXT
+$("#downloadTxtBtn").click(function(){
 
 if(!extractedText){
-alert("No extracted text available.");
-return;
-}
 
-const blob = new Blob(
-[extractedText],
-{
-type:"text/plain;charset=utf-8"
-}
+alert(
+"No extracted text available."
 );
 
-saveAs(blob,"mixed-language-ocr.txt");
+return;
+
+}
+
+const blob =
+new Blob(
+
+[extractedText],
+
+{
+type:
+"text/plain;charset=utf-8"
+}
+
+);
+
+saveAs(
+blob,
+originalFileName + "_txt.txt"
+);
+
+});
+
+// DOWNLOAD DOCX
+$("#downloadDocBtn").click(async function(){
+
+if(formattedContent.length === 0){
+
+alert(
+"No extracted text available."
+);
+
+return;
+
+}
+
+try{
+
+const {
+Document,
+Packer,
+Paragraph,
+TextRun
+} = window.docx;
+
+let docChildren = [];
+
+let currentRuns = [];
+
+for(const item of formattedContent){
+
+// PAGE HEADING
+if(item.type === "heading"){
+
+if(currentRuns.length > 0){
+
+docChildren.push(
+
+new Paragraph({
+
+spacing:{
+line:320,
+after:120
+},
+
+children:currentRuns
+
+})
+
+);
+
+currentRuns = [];
+
+}
+
+docChildren.push(
+
+new Paragraph({
+
+spacing:{
+after:300
+},
+
+children:[
+
+new TextRun({
+
+text:item.text,
+
+bold:true,
+
+size:34,
+
+font:"Arial"
+
+})
+
+]
+
+})
+
+);
+
+}
+
+// NEW LINE
+else if(item.type === "newline"){
+
+docChildren.push(
+
+new Paragraph({
+
+spacing:{
+line:320,
+after:120
+},
+
+children:currentRuns
+
+})
+
+);
+
+currentRuns = [];
+
+}
+
+// TEXT
+else if(item.type === "text"){
+
+currentRuns.push(
+
+new TextRun({
+
+text:item.text + " ",
+
+bold:item.bold === true,
+
+size: Math.max(
+item.size * 2,
+18
+),
+
+font:item.font,
+
+break:0
+
+})
+
+);
+
+}
+
+}
+
+if(currentRuns.length > 0){
+
+docChildren.push(
+
+new Paragraph({
+
+spacing:{
+line:320,
+after:120
+},
+
+children:currentRuns
+
+})
+
+);
+
+}
+
+const doc =
+new Document({
+
+sections:[
+
+{
+
+properties:{},
+
+children:docChildren
+
+}
+
+]
+
+});
+
+const blob =
+await Packer.toBlob(doc);
+
+saveAs(
+blob,
+originalFileName + "_doc.docx"
+);
+
+}catch(error){
+
+console.error(error);
+
+alert(
+"DOCX generation failed."
+);
+
+}
 
 });
 
