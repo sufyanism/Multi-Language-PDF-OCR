@@ -28,6 +28,9 @@ This project supports multiple world languages including:
 - Tesseract.js
 - FileSaver.js
 
+## Demo
+<img width="1560" height="825" alt="Demo" src="https://github.com/user-attachments/assets/457d2818-8235-48ca-87cb-9f4cc2ca8412" />
+
 
 ## How It Works
 1. Upload a scanned PDF
